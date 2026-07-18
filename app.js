@@ -1,0 +1,510 @@
+(() => {
+  'use strict';
+
+  const STORAGE_SETS_KEY = 'eduCodenames.wordSets';
+  const STORAGE_GAME_KEY = 'eduCodenames.game';
+
+  const BOARD_SIZE = 25;
+  const COUNT_RED = 9;
+  const COUNT_BLUE = 8;
+  const COUNT_NEUTRAL = 7;
+  const COUNT_BLACK = 1;
+
+  /** @type {Record<string, string[]>} */
+  let wordSets = {};
+
+  /**
+   * game = {
+   *   baseWords: string[25],
+   *   words: string[25],
+   *   colors: ('red'|'blue'|'neutral'|'black')[25],
+   *   revealed: boolean[25],
+   *   currentTeam: 'red'|'blue',
+   *   clueWord: string|null,
+   *   clueNumber: number|null,
+   *   guessesMade: number,
+   *   gameOver: boolean,
+   *   winner: 'red'|'blue'|null,
+   *   loserReason: 'assassin'|'allFound'|null
+   * }
+   */
+  let game = null;
+
+  let currentView = 'setup';
+
+  // ---------- persistence ----------
+
+  function loadWordSets() {
+    try {
+      const raw = localStorage.getItem(STORAGE_SETS_KEY);
+      wordSets = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      wordSets = {};
+    }
+  }
+
+  function saveWordSets() {
+    localStorage.setItem(STORAGE_SETS_KEY, JSON.stringify(wordSets));
+  }
+
+  function loadGame() {
+    try {
+      const raw = localStorage.getItem(STORAGE_GAME_KEY);
+      game = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      game = null;
+    }
+  }
+
+  function saveGame() {
+    if (game) {
+      localStorage.setItem(STORAGE_GAME_KEY, JSON.stringify(game));
+    } else {
+      localStorage.removeItem(STORAGE_GAME_KEY);
+    }
+  }
+
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_GAME_KEY) {
+      loadGame();
+      renderGameViews();
+    }
+    if (e.key === STORAGE_SETS_KEY) {
+      loadWordSets();
+      renderSavedSets();
+    }
+  });
+
+  // ---------- helpers ----------
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function parseWords(text) {
+    return text
+      .split('\n')
+      .map((w) => w.trim())
+      .filter((w) => w.length > 0);
+  }
+
+  function getWordsFromTextarea() {
+    return parseWords(wordInput.value);
+  }
+
+  // ---------- board generation ----------
+
+  function buildAssignment() {
+    const colors = [
+      ...Array(COUNT_RED).fill('red'),
+      ...Array(COUNT_BLUE).fill('blue'),
+      ...Array(COUNT_NEUTRAL).fill('neutral'),
+      ...Array(COUNT_BLACK).fill('black'),
+    ];
+    return shuffle(colors);
+  }
+
+  function startGameFromWords(rawWords) {
+    let pool = rawWords.slice();
+    if (pool.length > BOARD_SIZE) {
+      pool = shuffle(pool).slice(0, BOARD_SIZE);
+    }
+    const baseWords = pool;
+    const words = shuffle(baseWords);
+    const colors = buildAssignment();
+    game = {
+      baseWords,
+      words,
+      colors,
+      revealed: Array(BOARD_SIZE).fill(false),
+      currentTeam: 'red', // red has 9 cards, starts first
+      clueWord: null,
+      clueNumber: null,
+      guessesMade: 0,
+      gameOver: false,
+      winner: null,
+      loserReason: null,
+    };
+    saveGame();
+    setView('spymaster');
+  }
+
+  function resetBoardSameWords() {
+    if (!game) return;
+    const baseWords = game.baseWords;
+    const words = shuffle(baseWords);
+    const colors = buildAssignment();
+    game = {
+      baseWords,
+      words,
+      colors,
+      revealed: Array(BOARD_SIZE).fill(false),
+      currentTeam: 'red',
+      clueWord: null,
+      clueNumber: null,
+      guessesMade: 0,
+      gameOver: false,
+      winner: null,
+      loserReason: null,
+    };
+    saveGame();
+    renderGameViews();
+  }
+
+  // ---------- game logic ----------
+
+  function remainingCount(team) {
+    if (!game) return 0;
+    let n = 0;
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      if (game.colors[i] === team && !game.revealed[i]) n++;
+    }
+    return n;
+  }
+
+  function submitClue() {
+    if (!game || game.gameOver) return;
+    const word = clueWordInput.value.trim();
+    const num = parseInt(clueNumberInput.value, 10);
+    if (!word || isNaN(num) || num < 0) return;
+    game.clueWord = word;
+    game.clueNumber = num;
+    game.guessesMade = 0;
+    clueWordInput.value = '';
+    clueNumberInput.value = '';
+    saveGame();
+    renderGameViews();
+  }
+
+  function switchTeam() {
+    game.currentTeam = game.currentTeam === 'red' ? 'blue' : 'red';
+    game.clueWord = null;
+    game.clueNumber = null;
+    game.guessesMade = 0;
+  }
+
+  function handleCardClick(index) {
+    if (!game || game.gameOver) return;
+    if (game.revealed[index]) return;
+    if (!game.clueWord) return; // require an active clue before guessing
+
+    game.revealed[index] = true;
+    const color = game.colors[index];
+
+    if (color === 'black') {
+      game.gameOver = true;
+      game.winner = game.currentTeam === 'red' ? 'blue' : 'red';
+      game.loserReason = 'assassin';
+    } else if (color === game.currentTeam) {
+      game.guessesMade++;
+      if (remainingCount(game.currentTeam) === 0) {
+        game.gameOver = true;
+        game.winner = game.currentTeam;
+        game.loserReason = 'allFound';
+      } else if (game.guessesMade >= game.clueNumber) {
+        switchTeam();
+      }
+    } else {
+      // wrong team's card or neutral -> immediate switch
+      switchTeam();
+    }
+
+    saveGame();
+    renderGameViews();
+  }
+
+  // ---------- rendering: setup view ----------
+
+  function updateWordCount() {
+    const words = getWordsFromTextarea();
+    wordCountEl.textContent = `${words.length} Begriffe`;
+    const ok = words.length >= BOARD_SIZE;
+    startGameBtn.disabled = !ok;
+    if (words.length === 0) {
+      setupMessage.textContent = '';
+      setupMessage.classList.remove('error');
+    } else if (!ok) {
+      setupMessage.textContent = `Es werden mindestens 25 Begriffe benötigt (aktuell ${words.length}).`;
+      setupMessage.classList.add('error');
+    } else {
+      setupMessage.textContent = words.length > BOARD_SIZE
+        ? `${words.length} Begriffe erfasst – beim Start werden zufällig 25 ausgewählt.`
+        : '25 Begriffe bereit.';
+      setupMessage.classList.remove('error');
+    }
+  }
+
+  function renderSavedSets() {
+    const names = Object.keys(wordSets).sort((a, b) => a.localeCompare(b, 'de'));
+    savedSetsList.innerHTML = '';
+    if (names.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'empty-hint';
+      li.textContent = 'Noch keine gespeicherten Sets.';
+      savedSetsList.appendChild(li);
+      return;
+    }
+    for (const name of names) {
+      const words = wordSets[name];
+      const li = document.createElement('li');
+
+      const info = document.createElement('div');
+      info.className = 'set-info';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'set-name';
+      nameEl.textContent = name;
+      const countEl = document.createElement('span');
+      countEl.className = 'set-count';
+      countEl.textContent = `${words.length} Begriffe`;
+      info.appendChild(nameEl);
+      info.appendChild(countEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'set-actions';
+
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.textContent = 'Laden';
+      loadBtn.addEventListener('click', () => {
+        wordInput.value = words.join('\n');
+        updateWordCount();
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.textContent = 'Löschen';
+      deleteBtn.className = 'danger';
+      deleteBtn.addEventListener('click', () => {
+        if (confirm(`Set "${name}" wirklich löschen?`)) {
+          delete wordSets[name];
+          saveWordSets();
+          renderSavedSets();
+        }
+      });
+
+      actions.appendChild(loadBtn);
+      actions.appendChild(deleteBtn);
+
+      li.appendChild(info);
+      li.appendChild(actions);
+      savedSetsList.appendChild(li);
+    }
+  }
+
+  function saveCurrentSet() {
+    const name = setNameInput.value.trim();
+    const words = getWordsFromTextarea();
+    if (!name) {
+      alert('Bitte einen Namen für das Set eingeben.');
+      return;
+    }
+    if (words.length === 0) {
+      alert('Bitte zuerst Begriffe eingeben.');
+      return;
+    }
+    wordSets[name] = words;
+    saveWordSets();
+    setNameInput.value = '';
+    renderSavedSets();
+  }
+
+  function handleFileUpload(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      const incoming = parseWords(text.replace(/,/g, '\n'));
+      const existing = getWordsFromTextarea();
+      const merged = existing.concat(incoming);
+      wordInput.value = merged.join('\n');
+      updateWordCount();
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- rendering: game views ----------
+
+  function teamLabel(team) {
+    return team === 'red' ? 'Rot' : 'Blau';
+  }
+
+  function renderBoard(boardEl, isSpymaster) {
+    boardEl.innerHTML = '';
+    if (!game) return;
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      const tile = document.createElement('div');
+      const revealed = game.revealed[i];
+      tile.className = 'card-tile';
+      if (isSpymaster || revealed) {
+        tile.classList.add(`color-${game.colors[i]}`);
+      }
+      if (revealed) tile.classList.add('revealed');
+      tile.textContent = game.words[i];
+      tile.addEventListener('click', () => handleCardClick(i));
+      boardEl.appendChild(tile);
+    }
+  }
+
+  function renderClue(activeClueEl) {
+    if (!game) {
+      activeClueEl.innerHTML = '';
+      return;
+    }
+    if (game.clueWord) {
+      activeClueEl.innerHTML = `Hinweis: <span class="clue-value">${escapeHtml(game.clueWord)}</span> — <span class="clue-value">${game.clueNumber}</span>`;
+    } else if (!game.gameOver) {
+      activeClueEl.textContent = 'Warte auf Hinweis vom Spielleiter...';
+    } else {
+      activeClueEl.textContent = '';
+    }
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function renderTurnAndCounts(turnEl, countsEl) {
+    if (!game) {
+      turnEl.textContent = '';
+      countsEl.textContent = '';
+      return;
+    }
+    turnEl.textContent = game.gameOver ? 'Spiel beendet' : `Team ${teamLabel(game.currentTeam)} ist am Zug`;
+    turnEl.className = 'turn-indicator' + (game.gameOver ? '' : ` team-${game.currentTeam}`);
+    countsEl.innerHTML = `<span class="count-red">Rot: ${remainingCount('red')}</span><span class="count-blue">Blau: ${remainingCount('blue')}</span>`;
+  }
+
+  function renderGameOverBanner(bannerEl) {
+    if (!game || !game.gameOver) {
+      bannerEl.classList.remove('show', 'win-red', 'win-blue');
+      bannerEl.textContent = '';
+      return;
+    }
+    const winnerLabel = teamLabel(game.winner);
+    const text = game.loserReason === 'assassin'
+      ? `Todeskarte aufgedeckt! Team ${teamLabel(game.winner === 'red' ? 'blue' : 'red')} hat verloren. Team ${winnerLabel} gewinnt!`
+      : `Team ${winnerLabel} hat alle eigenen Begriffe gefunden und gewinnt!`;
+    bannerEl.textContent = text;
+    bannerEl.classList.add('show', game.winner === 'red' ? 'win-red' : 'win-blue');
+  }
+
+  function renderGameViews() {
+    renderBoard(spyBoard, true);
+    renderBoard(teamBoard, false);
+    renderClue(spyActiveClue);
+    renderClue(teamActiveClue);
+    renderTurnAndCounts(spyTurnIndicator, spyRemainingCounts);
+    renderTurnAndCounts(teamTurnIndicator, teamRemainingCounts);
+    renderGameOverBanner(spyGameOverBanner);
+    renderGameOverBanner(teamGameOverBanner);
+
+    const clueActive = !!(game && game.clueWord && !game.gameOver);
+    submitClueBtn.disabled = !!(game && game.gameOver);
+  }
+
+  // ---------- view switching ----------
+
+  function setView(view) {
+    currentView = view;
+    document.querySelectorAll('.view').forEach((el) => el.classList.remove('active'));
+    document.getElementById(`view-${view}`).classList.add('active');
+    document.querySelectorAll('.view-btn, .footer-link').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.view === view);
+    });
+    if (view === 'spymaster' || view === 'team') {
+      renderGameViews();
+    }
+  }
+
+  // ---------- DOM refs ----------
+
+  const wordInput = document.getElementById('wordInput');
+  const wordCountEl = document.getElementById('wordCount');
+  const fileUpload = document.getElementById('fileUpload');
+  const clearWordsBtn = document.getElementById('clearWordsBtn');
+  const setNameInput = document.getElementById('setNameInput');
+  const saveSetBtn = document.getElementById('saveSetBtn');
+  const savedSetsList = document.getElementById('savedSetsList');
+  const setupMessage = document.getElementById('setupMessage');
+  const startGameBtn = document.getElementById('startGameBtn');
+
+  const spyTurnIndicator = document.getElementById('spyTurnIndicator');
+  const spyRemainingCounts = document.getElementById('spyRemainingCounts');
+  const clueWordInput = document.getElementById('clueWordInput');
+  const clueNumberInput = document.getElementById('clueNumberInput');
+  const submitClueBtn = document.getElementById('submitClueBtn');
+  const spyActiveClue = document.getElementById('spyActiveClue');
+  const spyBoard = document.getElementById('spyBoard');
+  const spyGameOverBanner = document.getElementById('spyGameOverBanner');
+  const resetBoardBtnSpy = document.getElementById('resetBoardBtnSpy');
+  const backToSetupBtnSpy = document.getElementById('backToSetupBtnSpy');
+
+  const teamTurnIndicator = document.getElementById('teamTurnIndicator');
+  const teamRemainingCounts = document.getElementById('teamRemainingCounts');
+  const teamActiveClue = document.getElementById('teamActiveClue');
+  const teamBoard = document.getElementById('teamBoard');
+  const teamGameOverBanner = document.getElementById('teamGameOverBanner');
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+  // ---------- event bindings ----------
+
+  document.querySelectorAll('.view-btn, .footer-link').forEach((btn) => {
+    btn.addEventListener('click', () => setView(btn.dataset.view));
+  });
+
+  wordInput.addEventListener('input', updateWordCount);
+
+  clearWordsBtn.addEventListener('click', () => {
+    wordInput.value = '';
+    updateWordCount();
+  });
+
+  fileUpload.addEventListener('change', () => {
+    const file = fileUpload.files && fileUpload.files[0];
+    if (file) handleFileUpload(file);
+    fileUpload.value = '';
+  });
+
+  saveSetBtn.addEventListener('click', saveCurrentSet);
+
+  startGameBtn.addEventListener('click', () => {
+    const words = getWordsFromTextarea();
+    if (words.length < BOARD_SIZE) return;
+    startGameFromWords(words);
+  });
+
+  submitClueBtn.addEventListener('click', submitClue);
+  clueWordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitClue(); });
+  clueNumberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitClue(); });
+
+  resetBoardBtnSpy.addEventListener('click', () => {
+    if (confirm('Neues, zufälliges Spielfeld mit denselben Begriffen erstellen?')) {
+      resetBoardSameWords();
+    }
+  });
+
+  backToSetupBtnSpy.addEventListener('click', () => setView('setup'));
+
+  fullscreenBtn.addEventListener('click', () => {
+    const el = document.getElementById('view-team');
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen();
+    }
+  });
+
+  // ---------- init ----------
+
+  loadWordSets();
+  loadGame();
+  renderSavedSets();
+  updateWordCount();
+  setView(game ? 'spymaster' : 'setup');
+})();

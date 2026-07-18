@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduCodenames</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <h1><span class="logo-mark" aria-hidden="true">🕵️</span><span>EduCodenames</span></h1>
+    <nav class="view-switch">
+      <button type="button" class="view-btn" data-view="setup">Setup</button>
+      <button type="button" class="view-btn" data-view="spymaster">Spymaster</button>
+      <button type="button" class="view-btn" data-view="team">Team-Ansicht</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ============ SETUP VIEW ============ -->
+    <section id="view-setup" class="view">
+      <div class="setup-grid">
+
+        <div class="card">
+          <h2>1. Begriffe eingeben</h2>
+          <p class="hint">Ein Begriff pro Zeile. Es werden genau 25 Begriffe für das Spielfeld benötigt (bei mehr als 25 wird zufällig ausgewählt).</p>
+          <textarea id="wordInput" rows="14" placeholder="Mitochondrium&#10;Photosynthese&#10;Enzym&#10;..."></textarea>
+          <div class="word-count" id="wordCount">0 Begriffe</div>
+
+          <div class="upload-row">
+            <label class="upload-label" for="fileUpload">
+              Datei hochladen (.txt / .csv)
+              <input type="file" id="fileUpload" accept=".txt,.csv" hidden>
+            </label>
+            <button type="button" id="clearWordsBtn" class="btn-secondary">Leeren</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>2. Begriffs-Sets verwalten</h2>
+          <p class="hint">Speichere Sets pro Fach/Thema, um sie später wiederzuverwenden.</p>
+          <div class="save-row">
+            <input type="text" id="setNameInput" placeholder="Name des Sets, z. B. Biologie 9 – Zellbiologie">
+            <button type="button" id="saveSetBtn" class="btn-secondary">Set speichern</button>
+          </div>
+          <ul id="savedSetsList" class="saved-sets-list">
+            <li class="empty-hint">Noch keine gespeicherten Sets.</li>
+          </ul>
+        </div>
+
+        <div class="card start-card">
+          <h2>3. Spiel starten</h2>
+          <div id="setupMessage" class="setup-message"></div>
+          <button type="button" id="startGameBtn" class="btn-primary" disabled>Spiel starten</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ SPYMASTER VIEW ============ -->
+    <section id="view-spymaster" class="view">
+      <div class="game-header">
+        <div class="turn-indicator" id="spyTurnIndicator"></div>
+        <div class="remaining-counts" id="spyRemainingCounts"></div>
+      </div>
+
+      <div class="clue-panel">
+        <input type="text" id="clueWordInput" placeholder="Hinweiswort">
+        <input type="number" id="clueNumberInput" min="0" max="9" placeholder="Zahl">
+        <button type="button" id="submitClueBtn" class="btn-primary">Hinweis geben</button>
+      </div>
+      <div class="active-clue" id="spyActiveClue"></div>
+
+      <div class="board spymaster-board" id="spyBoard"></div>
+
+      <div class="game-over-banner" id="spyGameOverBanner"></div>
+
+      <div class="controls">
+        <button type="button" id="resetBoardBtnSpy" class="btn-secondary">Neues Spielfeld (gleiche Begriffe)</button>
+        <button type="button" id="backToSetupBtnSpy" class="btn-secondary">Zurück zum Setup</button>
+      </div>
+    </section>
+
+    <!-- ============ TEAM VIEW ============ -->
+    <section id="view-team" class="view">
+      <div class="game-header">
+        <div class="turn-indicator" id="teamTurnIndicator"></div>
+        <div class="remaining-counts" id="teamRemainingCounts"></div>
+        <button type="button" id="fullscreenBtn" class="btn-secondary">Vollbild</button>
+      </div>
+
+      <div class="active-clue big" id="teamActiveClue"></div>
+
+      <div class="board team-board" id="teamBoard"></div>
+
+      <div class="game-over-banner" id="teamGameOverBanner"></div>
+    </section>
+
+    <!-- ============ ANLEITUNG VIEW ============ -->
+    <section id="view-anleitung" class="view">
+      <div class="card legal-card">
+        <h2>Spielanleitung</h2>
+
+        <h3>Ziel</h3>
+        <p>Zwei Teams (Rot und Blau) versuchen, möglichst schnell alle eigenen Fachbegriffe auf dem 5×5-Raster zu erraten – anhand von Hinweisen ihres Spielleiters (Spymaster).</p>
+
+        <h3>Vorbereitung</h3>
+        <p>Im Setup 25 Fachbegriffe eintragen (oder ein gespeichertes Set laden) und auf „Spiel starten“ klicken. Die Zuordnung erfolgt automatisch zufällig: 9 Karten Rot, 8 Karten Blau, 7 neutrale Karten, 1 Todeskarte.</p>
+
+        <h3>Rollen</h3>
+        <p><b>Spymaster-Ansicht:</b> zeigt alle Karten farbig codiert – nur für den bzw. die Spielleiter:in sichtbar (z. B. auf dem Lehrer-Tablet). <b>Team-Ansicht:</b> zeigt die Begriffe ohne Farben – für die Projektion/den Beamer, den die ganze Klasse sieht.</p>
+
+        <h3>Ablauf</h3>
+        <ol>
+          <li>Der Spielleiter des aktiven Teams gibt in der Spymaster-Ansicht ein Hinweiswort und eine Zahl ein (z. B. „Zellorganellen – 2“).</li>
+          <li>Das Team rät in der Team-Ansicht, indem es auf Karten klickt.</li>
+          <li>Richtige eigene Karte: Team darf weiterraten, bis die angegebene Zahl an Treffern erreicht ist.</li>
+          <li>Falsche Karte (Gegner-Farbe oder neutral): Der Zug endet sofort, das andere Team ist dran.</li>
+          <li>Todeskarte: Sofortiges Spielende – das aufdeckende Team verliert.</li>
+        </ol>
+
+        <h3>Sieg</h3>
+        <p>Das Team, das zuerst alle eigenen Begriffe aufgedeckt hat, gewinnt. Über „Neues Spielfeld (gleiche Begriffe)“ startet ihr mit demselben Begriffs-Set direkt die nächste Runde.</p>
+
+        <h3>Tipp für den Unterricht</h3>
+        <p>Begriffs-Sets lassen sich im Setup pro Fach/Thema speichern und jederzeit wiederladen – so bereitet ihr mehrere Themen einmalig vor und nutzt sie in beliebigen Klassen erneut.</p>
+      </div>
+    </section>
+
+    <!-- ============ IMPRESSUM VIEW ============ -->
+    <section id="view-impressum" class="view">
+      <div class="card legal-card">
+        <h2>Impressum</h2>
+        <p>Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG).</p>
+        <p>
+          <b>Lars Pongrac</b><br>
+          Freiherr-vom-Stein-Straße 23<br>
+          59379 Selm<br>
+          Deutschland
+        </p>
+        <h3>Kontakt</h3>
+        <p>E-Mail: <a href="mailto:fikiri.info@icloud.com">fikiri.info@icloud.com</a></p>
+        <p>EduCodenames wird von mir privat und nicht-kommerziell betrieben (keine Werbung, keine Bezahlfunktionen, keine gewerbliche Nutzung).</p>
+      </div>
+    </section>
+
+    <!-- ============ DATENSCHUTZ VIEW ============ -->
+    <section id="view-datenschutz" class="view">
+      <div class="card legal-card">
+        <h2>Datenschutzerklärung</h2>
+
+        <h3>1. Verantwortlicher</h3>
+        <p>
+          Lars Pongrac<br>
+          Freiherr-vom-Stein-Straße 23<br>
+          59379 Selm<br>
+          E-Mail: <a href="mailto:fikiri.info@icloud.com">fikiri.info@icloud.com</a>
+        </p>
+
+        <h3>2. Kein Nutzerkonto, keine Registrierung</h3>
+        <p>EduCodenames funktioniert vollständig ohne Anmeldung. Es werden keine Namen, E-Mail-Adressen oder sonstigen Kontodaten erhoben.</p>
+
+        <h3>3. Lokale Speicherung im Browser</h3>
+        <p>Eingegebene Begriffs-Sets und der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis) werden ausschließlich lokal in deinem Browser gespeichert (localStorage), damit sie einen Seiten-Reload überstehen und zwischen mehreren Tabs desselben Geräts (z. B. Tablet und Beamer-Tab) synchron bleiben. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen. Über „Leeren“ bzw. das Löschen eines Sets kannst du sie jederzeit entfernen.</p>
+
+        <h3>4. Hosting</h3>
+        <p>Diese Seite wird über Cloudflare, Inc. gehostet. Beim Aufruf verarbeitet Cloudflare technisch bedingt Server-Logfiles (u. a. IP-Adresse, Datum/Uhrzeit des Zugriffs, aufgerufene Datei), wie es bei jedem Webhosting-Anbieter üblich ist. Details: <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">cloudflare.com/privacypolicy</a>.</p>
+
+        <h3>5. Keine Cookies, kein Tracking</h3>
+        <p>EduCodenames setzt keine Cookies ein und verwendet keine Analyse- oder Tracking-Tools.</p>
+
+        <h3>6. Deine Rechte</h3>
+        <p>Nach Art. 15–21 DSGVO hast du das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch. Wende dich dazu gerne per E-Mail an mich. Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="legal-footer">
+    <button type="button" class="footer-link" data-view="anleitung">Spielanleitung</button>
+    <button type="button" class="footer-link" data-view="impressum">Impressum</button>
+    <button type="button" class="footer-link" data-view="datenschutz">Datenschutz</button>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
