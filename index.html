@@ -131,7 +131,7 @@
         <div class="mode-badge" id="spyModeBadge"></div>
       </div>
 
-      <div class="readonly-banner" id="spyReadonlyBanner">🔗 Live-Ansicht auf diesem Gerät – nur lesbar, keine Eingaben möglich.</div>
+      <div class="readonly-banner" id="spyReadonlyBanner">🔗 Verbinde mit dem Hauptgerät …</div>
 
       <div class="clue-panel">
         <input type="text" id="clueWordInput" placeholder="Hinweiswort">
@@ -155,7 +155,7 @@
     <div class="modal-overlay" id="qrModalOverlay">
       <div class="modal-box">
         <h2>Spymaster-Ansicht auf zweitem Gerät</h2>
-        <p class="hint">Der bzw. die aktuelle Spielleiter:in scannt diesen Code mit dem eigenen Handy oder Tablet, um die geheime Zuordnung dort separat als Nur-Lese-Ansicht zu sehen. Der Code spiegelt immer den Stand zum Zeitpunkt des Öffnens – nach einem Spielleiter-Wechsel bitte neu öffnen.</p>
+        <p class="hint">Der bzw. die aktuelle Spielleiter:in scannt diesen Code mit dem eigenen Handy oder Tablet, um die geheime Zuordnung dort live mitzuverfolgen – inklusive der Möglichkeit, das Hinweiswort direkt dort einzugeben. Die Verbindung läuft über einen kostenlosen Online-Dienst (Firebase Realtime Database von Google), dazu mehr in der Datenschutzerklärung.</p>
         <div class="qr-code-box" id="qrCodeBox"></div>
         <div class="qr-link-row">
           <input type="text" id="qrLinkInput" readonly>
@@ -200,7 +200,7 @@
         <p><b>Spymaster-Ansicht:</b> zeigt alle Karten farbig codiert – nur für den bzw. die Spielleiter:in sichtbar (z. B. auf dem Lehrer-Tablet). <b>Team-Ansicht:</b> zeigt die Begriffe ohne Farben – für die Projektion/den Beamer, den die ganze Klasse sieht.</p>
 
         <h3>Spymaster-Ansicht auf einem zweiten Gerät</h3>
-        <p>In der Spymaster-Ansicht zeigt „📱 Auf zweitem Gerät anzeigen“ einen QR-Code. Scannt der bzw. die aktuelle Spielleiter:in diesen mit dem eigenen Handy, öffnet sich dort eine reine Nur-Lese-Ansicht des aktuellen Spielfelds – praktisch, wenn nicht alle direkt auf das Lehrer-Tablet schauen können oder sollen. Der Code zeigt immer den Stand zum Zeitpunkt des Öffnens; nach einem Spielleiter-Wechsel bitte neu öffnen und erneut scannen.</p>
+        <p>In der Spymaster-Ansicht zeigt „📱 Auf zweitem Gerät anzeigen“ einen QR-Code. Scannt der bzw. die aktuelle Spielleiter:in diesen mit dem eigenen Handy, öffnet sich dort eine live mitlaufende Ansicht des aktuellen Spielfelds – praktisch, wenn nicht alle direkt auf das Lehrer-Tablet schauen können oder sollen. Auf dem zweiten Gerät kann außerdem direkt das Hinweiswort samt Zahl eingegeben werden; es erscheint dann sofort auf allen verbundenen Geräten. Die Verbindung bleibt auch über einen Spielleiter-Wechsel und ein neues Spielfeld hinweg bestehen, ohne erneutes Scannen.</p>
 
         <h3>Ablauf</h3>
         <ol>
@@ -253,14 +253,14 @@
         <h3>3. Lokale Speicherung im Browser</h3>
         <p>Der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis, gewählter Spielmodus, optionales Oberthema) wird ausschließlich lokal in deinem Browser gespeichert (localStorage). Die letzten Runden werden dort automatisch als Verlauf hinterlegt, damit du sie gezielt fortsetzen kannst; über „Löschen“ entfernst du einzelne Einträge jederzeit. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen.</p>
 
-        <h3>4. QR-Code für ein zweites Gerät</h3>
-        <p>Über „Auf zweitem Gerät anzeigen“ in der Spymaster-Ansicht wird ein QR-Code erzeugt, der den aktuellen Spielfeld-Stand direkt und ausschließlich lokal im Browser in einen Link kodiert (kein Server, keine Übertragung an mich). Wird dieser Link auf einem anderen Gerät geöffnet, zeigt dieses Gerät eine reine Nur-Lese-Ansicht der geheimen Zuordnung zum Zeitpunkt des Scannens. Gib diesen Link bzw. QR-Code nur an Personen weiter, die die geheime Zuordnung sehen dürfen.</p>
+        <h3>4. QR-Code und Live-Synchronisation für ein zweites Gerät</h3>
+        <p>Über „Auf zweitem Gerät anzeigen“ in der Spymaster-Ansicht wird ein QR-Code mit einem Raum-Code erzeugt. Erst durch diesen Klick – nicht beim normalen Spielen auf einem einzelnen Gerät – wird der aktuelle Spielfeld-Stand (Begriffe, geheime Farbzuordnung, aufgedeckte Karten, Team am Zug, Hinweiswort samt Zahl) an die <b>Firebase Realtime Database</b> von Google Ireland Limited übertragen und dort für die Dauer der Verbindung gespeichert, damit beide Geräte live synchron bleiben. Wird der QR-Code bzw. Link auf einem zweiten Gerät geöffnet, verbindet sich auch dieses Gerät mit demselben Raum und kann dort ebenfalls das Hinweiswort eingeben. Es werden dabei keine Namen, Standortdaten oder sonstigen personenbezogenen Angaben übertragen – lediglich die Spielinhalte. Der Raum wird beim Verlassen der Spymaster-Ansicht best-effort automatisch gelöscht; eine darüberhinausgehende Speicherung durch Google im Rahmen von dessen eigener Infrastruktur (z. B. Backups, Logfiles) kann ich nicht ausschließen. Details zur Verarbeitung durch Google: <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">firebase.google.com/support/privacy</a>. Gib den Link bzw. QR-Code nur an Personen weiter, die die geheime Zuordnung sehen dürfen. Ohne Nutzung dieser Funktion bleibt der Spielstand wie gewohnt ausschließlich lokal im Browser (siehe Punkt 3).</p>
 
         <h3>5. Hosting</h3>
         <p>Diese Seite wird über Cloudflare, Inc. gehostet. Beim Aufruf verarbeitet Cloudflare technisch bedingt Server-Logfiles (u. a. IP-Adresse, Datum/Uhrzeit des Zugriffs, aufgerufene Datei), wie es bei jedem Webhosting-Anbieter üblich ist. Details: <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">cloudflare.com/privacypolicy</a>.</p>
 
         <h3>6. Keine Cookies, kein Tracking</h3>
-        <p>EduCodenames setzt keine Cookies ein und verwendet keine Analyse- oder Tracking-Tools.</p>
+        <p>EduCodenames setzt keine Cookies ein und verwendet keine Analyse- oder Tracking-Tools. Die unter Punkt 4 beschriebene Verbindung zur Firebase Realtime Database wird ausschließlich zur technischen Synchronisation der Spielinhalte zwischen zwei selbst gewählten Geräten genutzt, nicht zu Analyse- oder Tracking-Zwecken.</p>
 
         <h3>7. Deine Rechte</h3>
         <p>Nach Art. 15–21 DSGVO hast du das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch. Wende dich dazu gerne per E-Mail an mich. Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu.</p>
@@ -278,6 +278,9 @@
 </div>
 
 <script src="qrcode.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

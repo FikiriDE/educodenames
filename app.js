@@ -36,8 +36,15 @@
 
   let currentView = 'setup';
 
-  /** true when this tab is a scanned, read-only external Spymaster view */
-  let isReadOnlyExternal = false;
+  /** true when this tab is a scanned second-device Spymaster view (connected via Firebase room) */
+  let isSecondDevice = false;
+  /** room code this second-device tab is connected to */
+  let secondDeviceRoomCode = null;
+
+  /** true when the host has an active Firebase room (opened the QR modal at least once) */
+  let roomSyncActive = false;
+  let incomingClueRef = null;
+  let lastProcessedClueTs = 0;
 
   // ---------- persistence ----------
 
@@ -54,6 +61,13 @@
     if (game) {
       localStorage.setItem(STORAGE_GAME_KEY, JSON.stringify(game));
       upsertHistory(game);
+      if (roomSyncActive && game.roomCode) {
+        try {
+          firebase.database().ref('games/' + game.roomCode + '/state').set(encodeGameSnapshot(game));
+        } catch (e) {
+          console.error('EduCodenames: Firebase-Sync fehlgeschlagen', e);
+        }
+      }
     } else {
       localStorage.removeItem(STORAGE_GAME_KEY);
     }
@@ -89,7 +103,7 @@
   }
 
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_GAME_KEY && !isReadOnlyExternal) {
+    if (e.key === STORAGE_GAME_KEY && !isSecondDevice) {
       loadGame();
       renderGameViews();
     }
@@ -126,13 +140,13 @@
     return checked ? checked.value : 'standard';
   }
 
-  // ---------- QR sharing (second-device Spymaster view) ----------
+  // ---------- QR sharing + live sync (second-device Spymaster view) ----------
 
   const COLOR_CODE = { red: 'r', blue: 'b', neutral: 'n', black: 'k' };
   const COLOR_DECODE = { r: 'red', b: 'blue', n: 'neutral', k: 'black' };
 
   function encodeGameSnapshot(g) {
-    const payload = {
+    return {
       w: g.words,
       c: g.colors.map((c) => COLOR_CODE[c]).join(''),
       r: g.revealed.map((b) => (b ? '1' : '0')).join(''),
@@ -144,13 +158,9 @@
       wn: g.winner,
       lr: g.loserReason,
     };
-    const json = JSON.stringify(payload);
-    return btoa(unescape(encodeURIComponent(json)));
   }
 
-  function decodeGameSnapshot(str) {
-    const json = decodeURIComponent(escape(atob(str)));
-    const p = JSON.parse(json);
+  function decodeGameSnapshot(p) {
     return {
       words: p.w,
       colors: p.c.split('').map((ch) => COLOR_DECODE[ch]),
@@ -165,16 +175,76 @@
     };
   }
 
+  function generateRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // ohne verwechselbare Zeichen (I/1/O/0)
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
+  function ensureRoomCode() {
+    if (!game.roomCode) {
+      game.roomCode = generateRoomCode();
+    }
+    return game.roomCode;
+  }
+
+  function startHostRoomSync() {
+    if (roomSyncActive) return;
+    try {
+      incomingClueRef = firebase.database().ref('games/' + game.roomCode + '/incomingClue');
+      incomingClueRef.on('value', (snap) => {
+        const val = snap.val();
+        if (!val || !val.ts || val.ts <= lastProcessedClueTs) return;
+        lastProcessedClueTs = val.ts;
+        applyClue(val.word, val.number);
+        incomingClueRef.set(null);
+      });
+      lastProcessedClueTs = 0;
+      roomSyncActive = true;
+    } catch (e) {
+      console.error('EduCodenames: Firebase-Verbindung fehlgeschlagen', e);
+      incomingClueRef = null;
+      roomSyncActive = false;
+    }
+  }
+
+  function teardownRoomIfActive() {
+    if (incomingClueRef) {
+      incomingClueRef.off();
+      incomingClueRef = null;
+    }
+    if (roomSyncActive && game && game.roomCode) {
+      try {
+        firebase.database().ref('games/' + game.roomCode).remove().catch(() => {});
+      } catch (e) {
+        // best effort - ignore
+      }
+    }
+    roomSyncActive = false;
+  }
+
   function buildShareUrl() {
     const base = location.origin + location.pathname;
-    return `${base}?spy=${encodeGameSnapshot(game)}`;
+    return `${base}?room=${game.roomCode}`;
   }
 
   function openQrModal() {
     if (!game) return;
+    ensureRoomCode();
+    startHostRoomSync();
+    qrCodeBox.innerHTML = '';
+    if (!roomSyncActive) {
+      qrLinkInput.value = '';
+      qrCodeBox.textContent = '⚠️ Verbindung zum Sync-Dienst fehlgeschlagen. Bitte Firebase-Konfiguration und Internetverbindung prüfen.';
+      qrModalOverlay.classList.add('show');
+      return;
+    }
+    saveGame();
     const url = buildShareUrl();
     qrLinkInput.value = url;
-    qrCodeBox.innerHTML = '';
     new QRCode(qrCodeBox, {
       text: url,
       width: 240,
@@ -188,26 +258,44 @@
     qrModalOverlay.classList.remove('show');
   }
 
-  function initReadOnlyExternalViewIfPresent() {
+  function initSecondDeviceViewIfPresent() {
     const params = new URLSearchParams(location.search);
-    const spyParam = params.get('spy');
-    if (!spyParam) return false;
-    try {
-      game = decodeGameSnapshot(spyParam);
-    } catch (e) {
-      return false;
-    }
-    isReadOnlyExternal = true;
+    const roomCode = params.get('room');
+    if (!roomCode) return false;
+
+    isSecondDevice = true;
+    secondDeviceRoomCode = roomCode;
     document.querySelectorAll('.view-btn, .footer-link').forEach((btn) => {
       if (btn.dataset.view !== 'spymaster') btn.style.display = 'none';
     });
-    clueWordInput.disabled = true;
-    clueNumberInput.disabled = true;
-    submitClueBtn.style.display = 'none';
-    document.querySelector('#view-spymaster .clue-panel').style.display = 'none';
     document.querySelector('#view-spymaster .controls').style.display = 'none';
+    spyReadonlyBanner.textContent = '🔗 Verbinde mit dem Hauptgerät …';
     spyReadonlyBanner.classList.add('show');
     setView('spymaster');
+
+    try {
+      const stateRef = firebase.database().ref('games/' + roomCode + '/state');
+      stateRef.on('value', (snap) => {
+        const val = snap.val();
+        if (!val) {
+          spyReadonlyBanner.textContent = '⚠️ Raum nicht gefunden – bitte auf dem Hauptgerät einen neuen QR-Code öffnen.';
+          return;
+        }
+        try {
+          game = decodeGameSnapshot(val);
+          spyReadonlyBanner.textContent = '🔗 Verbunden – Hinweis kann hier eingegeben werden.';
+          renderGameViews();
+        } catch (e) {
+          spyReadonlyBanner.textContent = '⚠️ Fehler beim Laden des Spielstands.';
+        }
+      }, () => {
+        spyReadonlyBanner.textContent = '⚠️ Verbindung fehlgeschlagen. Bitte Internetverbindung prüfen.';
+      });
+    } catch (e) {
+      console.error('EduCodenames: Firebase-Verbindung fehlgeschlagen', e);
+      spyReadonlyBanner.textContent = '⚠️ Verbindung zum Sync-Dienst fehlgeschlagen.';
+    }
+
     return true;
   }
 
@@ -224,6 +312,7 @@
   }
 
   function startGameFromWords(rawWords) {
+    teardownRoomIfActive();
     let pool = rawWords.slice();
     if (pool.length > BOARD_SIZE) {
       pool = shuffle(pool).slice(0, BOARD_SIZE);
@@ -246,6 +335,7 @@
       gameOver: false,
       winner: null,
       loserReason: null,
+      roomCode: null,
     };
     saveGame();
     setView('spymaster');
@@ -256,6 +346,7 @@
     const baseWords = game.baseWords;
     const mode = game.mode;
     const topic = game.topic;
+    const roomCode = game.roomCode;
     const words = shuffle(baseWords);
     const colors = buildAssignment();
     game = {
@@ -273,6 +364,7 @@
       gameOver: false,
       winner: null,
       loserReason: null,
+      roomCode,
     };
     saveGame();
     renderGameViews();
@@ -289,18 +381,39 @@
     return n;
   }
 
-  function submitClue() {
-    if (!game || game.gameOver) return;
-    const word = clueWordInput.value.trim();
-    const num = parseInt(clueNumberInput.value, 10);
-    if (!word || isNaN(num) || num < 0) return;
+  function isValidClueInput(word, num) {
+    return !!word && !isNaN(num) && num >= 0;
+  }
+
+  function applyClue(word, num) {
+    if (!game || game.gameOver) return false;
+    if (!isValidClueInput(word, num)) return false;
     game.clueWord = word;
     game.clueNumber = num;
     game.guessesMade = 0;
-    clueWordInput.value = '';
-    clueNumberInput.value = '';
     saveGame();
     renderGameViews();
+    return true;
+  }
+
+  function submitClue() {
+    const word = clueWordInput.value.trim();
+    const num = parseInt(clueNumberInput.value, 10);
+    if (isSecondDevice) {
+      if (!game || game.gameOver || !isValidClueInput(word, num) || !secondDeviceRoomCode) return;
+      try {
+        firebase.database().ref('games/' + secondDeviceRoomCode + '/incomingClue').set({ word, number: num, ts: Date.now() });
+        clueWordInput.value = '';
+        clueNumberInput.value = '';
+      } catch (e) {
+        console.error('EduCodenames: Hinweis konnte nicht gesendet werden', e);
+      }
+      return;
+    }
+    if (applyClue(word, num)) {
+      clueWordInput.value = '';
+      clueNumberInput.value = '';
+    }
   }
 
   function reassignHiddenCards() {
@@ -329,7 +442,7 @@
   }
 
   function handleCardClick(index) {
-    if (isReadOnlyExternal) return;
+    if (isSecondDevice) return;
     if (!game || game.gameOver) return;
     if (game.revealed[index]) return;
     if (!game.clueWord) return; // require an active clue before guessing
@@ -461,6 +574,7 @@
   function resumeHistoryEntry(id) {
     const entry = history.find((h) => h.id === id);
     if (!entry) return;
+    teardownRoomIfActive();
     game = JSON.parse(JSON.stringify(entry));
     saveGame();
     setView('spymaster');
@@ -676,7 +790,7 @@
 
   // ---------- init ----------
 
-  if (!initReadOnlyExternalViewIfPresent()) {
+  if (!initSecondDeviceViewIfPresent()) {
     loadHistory();
     renderHistoryList();
     updateWordCount();
