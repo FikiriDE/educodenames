@@ -34,6 +34,8 @@
 
         <div class="card">
           <h2>1. Begriffe eingeben</h2>
+          <label class="field-label" for="topicInput">Oberthema (optional)</label>
+          <input type="text" id="topicInput" placeholder="z. B. Biologie 9 – Zellbiologie">
           <p class="hint">Ein Begriff pro Zeile. Es werden genau 25 Begriffe für das Spielfeld benötigt (bei mehr als 25 wird zufällig ausgewählt).</p>
           <textarea id="wordInput" rows="14" placeholder="Mitochondrium&#10;Photosynthese&#10;Enzym&#10;..."></textarea>
           <div class="word-count" id="wordCount">0 Begriffe</div>
@@ -202,7 +204,7 @@
         <p>EduCodenames funktioniert vollständig ohne Anmeldung. Es werden keine Namen, E-Mail-Adressen oder sonstigen Kontodaten erhoben.</p>
 
         <h3>3. Lokale Speicherung im Browser</h3>
-        <p>Der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis, gewählter Spielmodus) wird ausschließlich lokal in deinem Browser gespeichert (localStorage), damit er einen Seiten-Reload übersteht und zwischen mehreren Tabs desselben Geräts (z. B. Tablet und Beamer-Tab) synchron bleibt. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen.</p>
+        <p>Der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis, gewählter Spielmodus, optionales Oberthema) wird ausschließlich lokal in deinem Browser gespeichert (localStorage). Die letzten Runden werden dort automatisch als Verlauf hinterlegt, damit du sie gezielt fortsetzen kannst; über „Löschen“ entfernst du einzelne Einträge jederzeit. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen.</p>
 
         <h3>4. QR-Code für ein zweites Gerät</h3>
         <p>Über „Auf zweitem Gerät anzeigen“ in der Spymaster-Ansicht wird ein QR-Code erzeugt, der den aktuellen Spielfeld-Stand direkt und ausschließlich lokal im Browser in einen Link kodiert (kein Server, keine Übertragung an mich). Wird dieser Link auf einem anderen Gerät geöffnet, zeigt dieses Gerät eine reine Nur-Lese-Ansicht der geheimen Zuordnung zum Zeitpunkt des Scannens. Gib diesen Link bzw. QR-Code nur an Personen weiter, die die geheime Zuordnung sehen dürfen.</p>
@@ -224,6 +226,7 @@
     <button type="button" class="footer-link" data-view="anleitung">Spielanleitung</button>
     <button type="button" class="footer-link" data-view="impressum">Impressum</button>
     <button type="button" class="footer-link" data-view="datenschutz">Datenschutz</button>
+    <a class="footer-link donate-link" href="https://paypal.me/LarsPongrac" target="_blank" rel="noopener noreferrer">💛 Spenden</a>
   </footer>
 </div>
 

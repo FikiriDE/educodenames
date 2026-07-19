@@ -233,6 +233,7 @@
     const colors = buildAssignment();
     game = {
       id: Date.now(),
+      topic: topicInput.value.trim(),
       baseWords,
       words,
       colors,
@@ -254,10 +255,12 @@
     if (!game) return;
     const baseWords = game.baseWords;
     const mode = game.mode;
+    const topic = game.topic;
     const words = shuffle(baseWords);
     const colors = buildAssignment();
     game = {
       id: Date.now(),
+      topic,
       baseWords,
       words,
       colors,
@@ -396,7 +399,10 @@
     const status = g.gameOver
       ? `Beendet – Team ${teamLabel(g.winner)} gewinnt`
       : `Team ${teamLabel(g.currentTeam)} am Zug`;
-    return { dateStr, meta: `${g.baseWords.length} Begriffe · ${status}` };
+    const title = g.topic ? g.topic : dateStr;
+    const metaParts = [`${g.baseWords.length} Begriffe`, status];
+    if (g.topic) metaParts.unshift(dateStr);
+    return { dateStr: title, meta: metaParts.join(' · ') };
   }
 
   function renderHistoryList() {
@@ -573,6 +579,7 @@
 
   // ---------- DOM refs ----------
 
+  const topicInput = document.getElementById('topicInput');
   const wordInput = document.getElementById('wordInput');
   const wordCountEl = document.getElementById('wordCount');
   const fileUpload = document.getElementById('fileUpload');
@@ -610,7 +617,7 @@
 
   // ---------- event bindings ----------
 
-  document.querySelectorAll('.view-btn, .footer-link').forEach((btn) => {
+  document.querySelectorAll('.view-btn[data-view], .footer-link[data-view]').forEach((btn) => {
     btn.addEventListener('click', () => setView(btn.dataset.view));
   });
 
@@ -618,6 +625,7 @@
 
   clearWordsBtn.addEventListener('click', () => {
     wordInput.value = '';
+    topicInput.value = '';
     updateWordCount();
   });
 

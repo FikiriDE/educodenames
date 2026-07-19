@@ -104,6 +104,18 @@ main {
   margin-top: -6px;
 }
 
+.field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+  margin-bottom: 6px;
+}
+
+#topicInput {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
 .setup-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -565,6 +577,7 @@ input[type="text"], input[type="number"] {
   font-size: 0.85rem;
   cursor: pointer;
   padding: 4px;
+  text-decoration: none;
 }
 
 .footer-link:hover, .footer-link.active {
