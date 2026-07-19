@@ -256,6 +256,39 @@ input[type="text"], input[type="number"] {
 
 .setup-message.error { color: #e08791; }
 
+.mode-option {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.mode-option:first-of-type { margin-top: 14px; }
+
+.mode-option label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  cursor: pointer;
+}
+
+.mode-option input[type="radio"] {
+  grid-row: 1 / 3;
+  margin-top: 3px;
+  accent-color: #3f8ecb;
+}
+
+.mode-option-title {
+  font-weight: 600;
+}
+
+.mode-option-desc {
+  grid-column: 2;
+  color: var(--color-text-dim);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
 /* ---- Game views ---- */
 
 .game-header {
@@ -288,6 +321,19 @@ input[type="text"], input[type="number"] {
 
 .remaining-counts .count-red { color: var(--color-red); }
 .remaining-counts .count-blue { color: var(--color-blue); }
+
+.mode-badge {
+  display: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+}
+
+.mode-badge.show { display: inline-block; }
 
 .clue-panel {
   display: flex;

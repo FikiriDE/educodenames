@@ -51,8 +51,26 @@
           </ul>
         </div>
 
+        <div class="card">
+          <h2>3. Spielmodus wählen</h2>
+          <div class="mode-option">
+            <label>
+              <input type="radio" name="gameMode" value="standard" checked>
+              <span class="mode-option-title">Standard</span>
+              <span class="mode-option-desc">Die geheime Zuordnung wird einmal zu Beginn festgelegt und bleibt für die gesamte Runde unverändert.</span>
+            </label>
+          </div>
+          <div class="mode-option">
+            <label>
+              <input type="radio" name="gameMode" value="rotation">
+              <span class="mode-option-title">Spielleiter-Rotation mit Teil-Neuzuordnung</span>
+              <span class="mode-option-desc">Bei jedem Spielleiter-Wechsel wird unter den noch verdeckten Karten eine komplett neue geheime Zuordnung gewürfelt (Kartenanzahl pro Team bleibt gleich). Aufgedeckte Karten bleiben unverändert. So hat kein ehemaliger Spielleiter einen Wissensvorteil.</span>
+            </label>
+          </div>
+        </div>
+
         <div class="card start-card">
-          <h2>3. Spiel starten</h2>
+          <h2>4. Spiel starten</h2>
           <div id="setupMessage" class="setup-message"></div>
           <button type="button" id="startGameBtn" class="btn-primary" disabled>Spiel starten</button>
         </div>
@@ -65,6 +83,7 @@
       <div class="game-header">
         <div class="turn-indicator" id="spyTurnIndicator"></div>
         <div class="remaining-counts" id="spyRemainingCounts"></div>
+        <div class="mode-badge" id="spyModeBadge"></div>
       </div>
 
       <div class="clue-panel">
@@ -89,6 +108,7 @@
       <div class="game-header">
         <div class="turn-indicator" id="teamTurnIndicator"></div>
         <div class="remaining-counts" id="teamRemainingCounts"></div>
+        <div class="mode-badge" id="teamModeBadge"></div>
         <button type="button" id="fullscreenBtn" class="btn-secondary">Vollbild</button>
       </div>
 
@@ -108,7 +128,11 @@
         <p>Zwei Teams (Rot und Blau) versuchen, möglichst schnell alle eigenen Fachbegriffe auf dem 5×5-Raster zu erraten – anhand von Hinweisen ihres Spielleiters (Spymaster).</p>
 
         <h3>Vorbereitung</h3>
-        <p>Im Setup 25 Fachbegriffe eintragen (oder ein gespeichertes Set laden) und auf „Spiel starten“ klicken. Die Zuordnung erfolgt automatisch zufällig: 9 Karten Rot, 8 Karten Blau, 7 neutrale Karten, 1 Todeskarte.</p>
+        <p>Im Setup 25 Fachbegriffe eintragen (oder ein gespeichertes Set laden), einen Spielmodus wählen und auf „Spiel starten“ klicken. Die Zuordnung erfolgt automatisch zufällig: 9 Karten Rot, 8 Karten Blau, 7 neutrale Karten, 1 Todeskarte.</p>
+
+        <h3>Spielmodi</h3>
+        <p><b>Standard:</b> Die geheime Zuordnung steht von Anfang an fest und ändert sich während der ganzen Runde nicht.</p>
+        <p><b>Spielleiter-Rotation mit Teil-Neuzuordnung:</b> Bei jedem Spielleiter-Wechsel wird unter den noch verdeckten Karten eine komplett neue geheime Zuordnung gewürfelt – die Anzahl verbleibender Karten pro Team bleibt dabei exakt erhalten, nur ihre Position unter den verdeckten Karten wird neu verteilt. Bereits aufgedeckte Karten bleiben unverändert. Da die neue Zuordnung nur für den gerade aktiven Spielleiter sichtbar ist, verliert das Wissen eines ehemaligen Spielleiters nach dem Wechsel seinen Wert – niemand kann sich also einen Vorteil erspielen, indem er später selbst Spielleiter wird.</p>
 
         <h3>Rollen</h3>
         <p><b>Spymaster-Ansicht:</b> zeigt alle Karten farbig codiert – nur für den bzw. die Spielleiter:in sichtbar (z. B. auf dem Lehrer-Tablet). <b>Team-Ansicht:</b> zeigt die Begriffe ohne Farben – für die Projektion/den Beamer, den die ganze Klasse sieht.</p>
@@ -164,7 +188,7 @@
         <p>EduCodenames funktioniert vollständig ohne Anmeldung. Es werden keine Namen, E-Mail-Adressen oder sonstigen Kontodaten erhoben.</p>
 
         <h3>3. Lokale Speicherung im Browser</h3>
-        <p>Eingegebene Begriffs-Sets und der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis) werden ausschließlich lokal in deinem Browser gespeichert (localStorage), damit sie einen Seiten-Reload überstehen und zwischen mehreren Tabs desselben Geräts (z. B. Tablet und Beamer-Tab) synchron bleiben. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen. Über „Leeren“ bzw. das Löschen eines Sets kannst du sie jederzeit entfernen.</p>
+        <p>Eingegebene Begriffs-Sets und der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis, gewählter Spielmodus) werden ausschließlich lokal in deinem Browser gespeichert (localStorage), damit sie einen Seiten-Reload überstehen und zwischen mehreren Tabs desselben Geräts (z. B. Tablet und Beamer-Tab) synchron bleiben. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen. Über „Leeren“ bzw. das Löschen eines Sets kannst du sie jederzeit entfernen.</p>
 
         <h3>4. Hosting</h3>
         <p>Diese Seite wird über Cloudflare, Inc. gehostet. Beim Aufruf verarbeitet Cloudflare technisch bedingt Server-Logfiles (u. a. IP-Adresse, Datum/Uhrzeit des Zugriffs, aufgerufene Datei), wie es bei jedem Webhosting-Anbieter üblich ist. Details: <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">cloudflare.com/privacypolicy</a>.</p>

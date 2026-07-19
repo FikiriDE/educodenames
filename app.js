@@ -20,6 +20,7 @@
    *   colors: ('red'|'blue'|'neutral'|'black')[25],
    *   revealed: boolean[25],
    *   currentTeam: 'red'|'blue',
+   *   mode: 'standard'|'rotation',
    *   clueWord: string|null,
    *   clueNumber: number|null,
    *   guessesMade: number,
@@ -97,6 +98,11 @@
     return parseWords(wordInput.value);
   }
 
+  function getSelectedMode() {
+    const checked = document.querySelector('input[name="gameMode"]:checked');
+    return checked ? checked.value : 'standard';
+  }
+
   // ---------- board generation ----------
 
   function buildAssignment() {
@@ -123,6 +129,7 @@
       colors,
       revealed: Array(BOARD_SIZE).fill(false),
       currentTeam: 'red', // red has 9 cards, starts first
+      mode: getSelectedMode(),
       clueWord: null,
       clueNumber: null,
       guessesMade: 0,
@@ -137,6 +144,7 @@
   function resetBoardSameWords() {
     if (!game) return;
     const baseWords = game.baseWords;
+    const mode = game.mode;
     const words = shuffle(baseWords);
     const colors = buildAssignment();
     game = {
@@ -145,6 +153,7 @@
       colors,
       revealed: Array(BOARD_SIZE).fill(false),
       currentTeam: 'red',
+      mode,
       clueWord: null,
       clueNumber: null,
       guessesMade: 0,
@@ -181,11 +190,29 @@
     renderGameViews();
   }
 
+  function reassignHiddenCards() {
+    const hiddenIndices = [];
+    const hiddenColors = [];
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      if (!game.revealed[i]) {
+        hiddenIndices.push(i);
+        hiddenColors.push(game.colors[i]);
+      }
+    }
+    const shuffledColors = shuffle(hiddenColors);
+    hiddenIndices.forEach((idx, j) => {
+      game.colors[idx] = shuffledColors[j];
+    });
+  }
+
   function switchTeam() {
     game.currentTeam = game.currentTeam === 'red' ? 'blue' : 'red';
     game.clueWord = null;
     game.clueNumber = null;
     game.guessesMade = 0;
+    if (game.mode === 'rotation') {
+      reassignHiddenCards();
+    }
   }
 
   function handleCardClick(index) {
@@ -380,6 +407,16 @@
     countsEl.innerHTML = `<span class="count-red">Rot: ${remainingCount('red')}</span><span class="count-blue">Blau: ${remainingCount('blue')}</span>`;
   }
 
+  function renderModeBadge(badgeEl) {
+    if (!game || game.mode !== 'rotation') {
+      badgeEl.textContent = '';
+      badgeEl.classList.remove('show');
+      return;
+    }
+    badgeEl.textContent = 'Modus: Spielleiter-Rotation';
+    badgeEl.classList.add('show');
+  }
+
   function renderGameOverBanner(bannerEl) {
     if (!game || !game.gameOver) {
       bannerEl.classList.remove('show', 'win-red', 'win-blue');
@@ -403,6 +440,8 @@
     renderTurnAndCounts(teamTurnIndicator, teamRemainingCounts);
     renderGameOverBanner(spyGameOverBanner);
     renderGameOverBanner(teamGameOverBanner);
+    renderModeBadge(spyModeBadge);
+    renderModeBadge(teamModeBadge);
 
     const clueActive = !!(game && game.clueWord && !game.gameOver);
     submitClueBtn.disabled = !!(game && game.gameOver);
@@ -442,6 +481,7 @@
   const spyActiveClue = document.getElementById('spyActiveClue');
   const spyBoard = document.getElementById('spyBoard');
   const spyGameOverBanner = document.getElementById('spyGameOverBanner');
+  const spyModeBadge = document.getElementById('spyModeBadge');
   const resetBoardBtnSpy = document.getElementById('resetBoardBtnSpy');
   const backToSetupBtnSpy = document.getElementById('backToSetupBtnSpy');
 
@@ -450,6 +490,7 @@
   const teamActiveClue = document.getElementById('teamActiveClue');
   const teamBoard = document.getElementById('teamBoard');
   const teamGameOverBanner = document.getElementById('teamGameOverBanner');
+  const teamModeBadge = document.getElementById('teamModeBadge');
   const fullscreenBtn = document.getElementById('fullscreenBtn');
 
   // ---------- event bindings ----------
