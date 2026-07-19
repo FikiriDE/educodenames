@@ -1,7 +1,6 @@
 (() => {
   'use strict';
 
-  const STORAGE_SETS_KEY = 'eduCodenames.wordSets';
   const STORAGE_GAME_KEY = 'eduCodenames.game';
 
   const BOARD_SIZE = 25;
@@ -9,9 +8,6 @@
   const COUNT_BLUE = 8;
   const COUNT_NEUTRAL = 7;
   const COUNT_BLACK = 1;
-
-  /** @type {Record<string, string[]>} */
-  let wordSets = {};
 
   /**
    * game = {
@@ -33,20 +29,10 @@
 
   let currentView = 'setup';
 
+  /** true when this tab is a scanned, read-only external Spymaster view */
+  let isReadOnlyExternal = false;
+
   // ---------- persistence ----------
-
-  function loadWordSets() {
-    try {
-      const raw = localStorage.getItem(STORAGE_SETS_KEY);
-      wordSets = raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      wordSets = {};
-    }
-  }
-
-  function saveWordSets() {
-    localStorage.setItem(STORAGE_SETS_KEY, JSON.stringify(wordSets));
-  }
 
   function loadGame() {
     try {
@@ -66,13 +52,9 @@
   }
 
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_GAME_KEY) {
+    if (e.key === STORAGE_GAME_KEY && !isReadOnlyExternal) {
       loadGame();
       renderGameViews();
-    }
-    if (e.key === STORAGE_SETS_KEY) {
-      loadWordSets();
-      renderSavedSets();
     }
   });
 
@@ -101,6 +83,91 @@
   function getSelectedMode() {
     const checked = document.querySelector('input[name="gameMode"]:checked');
     return checked ? checked.value : 'standard';
+  }
+
+  // ---------- QR sharing (second-device Spymaster view) ----------
+
+  const COLOR_CODE = { red: 'r', blue: 'b', neutral: 'n', black: 'k' };
+  const COLOR_DECODE = { r: 'red', b: 'blue', n: 'neutral', k: 'black' };
+
+  function encodeGameSnapshot(g) {
+    const payload = {
+      w: g.words,
+      c: g.colors.map((c) => COLOR_CODE[c]).join(''),
+      r: g.revealed.map((b) => (b ? '1' : '0')).join(''),
+      t: g.currentTeam,
+      m: g.mode,
+      cw: g.clueWord,
+      cn: g.clueNumber,
+      go: g.gameOver,
+      wn: g.winner,
+      lr: g.loserReason,
+    };
+    const json = JSON.stringify(payload);
+    return btoa(unescape(encodeURIComponent(json)));
+  }
+
+  function decodeGameSnapshot(str) {
+    const json = decodeURIComponent(escape(atob(str)));
+    const p = JSON.parse(json);
+    return {
+      words: p.w,
+      colors: p.c.split('').map((ch) => COLOR_DECODE[ch]),
+      revealed: p.r.split('').map((ch) => ch === '1'),
+      currentTeam: p.t,
+      mode: p.m,
+      clueWord: p.cw,
+      clueNumber: p.cn,
+      gameOver: p.go,
+      winner: p.wn,
+      loserReason: p.lr,
+    };
+  }
+
+  function buildShareUrl() {
+    const base = location.origin + location.pathname;
+    return `${base}?spy=${encodeGameSnapshot(game)}`;
+  }
+
+  function openQrModal() {
+    if (!game) return;
+    const url = buildShareUrl();
+    qrLinkInput.value = url;
+    qrCodeBox.innerHTML = '';
+    new QRCode(qrCodeBox, {
+      text: url,
+      width: 240,
+      height: 240,
+      correctLevel: QRCode.CorrectLevel.L,
+    });
+    qrModalOverlay.classList.add('show');
+  }
+
+  function closeQrModal() {
+    qrModalOverlay.classList.remove('show');
+  }
+
+  function initReadOnlyExternalViewIfPresent() {
+    const params = new URLSearchParams(location.search);
+    const spyParam = params.get('spy');
+    if (!spyParam) return false;
+    try {
+      game = decodeGameSnapshot(spyParam);
+    } catch (e) {
+      return false;
+    }
+    isReadOnlyExternal = true;
+    document.querySelectorAll('.view-btn, .footer-link').forEach((btn) => {
+      if (btn.dataset.view !== 'spymaster') btn.style.display = 'none';
+    });
+    clueWordInput.disabled = true;
+    clueNumberInput.disabled = true;
+    submitClueBtn.style.display = 'none';
+    document.querySelector('#view-spymaster .clue-panel').style.display = 'none';
+    document.querySelector('#view-spymaster .controls').style.display = 'none';
+    spyReadonlyBanner.classList.add('show');
+    setView('spymaster');
+    return true;
   }
 
   // ---------- board generation ----------
@@ -216,6 +283,7 @@
   }
 
   function handleCardClick(index) {
+    if (isReadOnlyExternal) return;
     if (!game || game.gameOver) return;
     if (game.revealed[index]) return;
     if (!game.clueWord) return; // require an active clue before guessing
@@ -264,80 +332,6 @@
         : '25 Begriffe bereit.';
       setupMessage.classList.remove('error');
     }
-  }
-
-  function renderSavedSets() {
-    const names = Object.keys(wordSets).sort((a, b) => a.localeCompare(b, 'de'));
-    savedSetsList.innerHTML = '';
-    if (names.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'empty-hint';
-      li.textContent = 'Noch keine gespeicherten Sets.';
-      savedSetsList.appendChild(li);
-      return;
-    }
-    for (const name of names) {
-      const words = wordSets[name];
-      const li = document.createElement('li');
-
-      const info = document.createElement('div');
-      info.className = 'set-info';
-      const nameEl = document.createElement('span');
-      nameEl.className = 'set-name';
-      nameEl.textContent = name;
-      const countEl = document.createElement('span');
-      countEl.className = 'set-count';
-      countEl.textContent = `${words.length} Begriffe`;
-      info.appendChild(nameEl);
-      info.appendChild(countEl);
-
-      const actions = document.createElement('div');
-      actions.className = 'set-actions';
-
-      const loadBtn = document.createElement('button');
-      loadBtn.type = 'button';
-      loadBtn.textContent = 'Laden';
-      loadBtn.addEventListener('click', () => {
-        wordInput.value = words.join('\n');
-        updateWordCount();
-      });
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.textContent = 'Löschen';
-      deleteBtn.className = 'danger';
-      deleteBtn.addEventListener('click', () => {
-        if (confirm(`Set "${name}" wirklich löschen?`)) {
-          delete wordSets[name];
-          saveWordSets();
-          renderSavedSets();
-        }
-      });
-
-      actions.appendChild(loadBtn);
-      actions.appendChild(deleteBtn);
-
-      li.appendChild(info);
-      li.appendChild(actions);
-      savedSetsList.appendChild(li);
-    }
-  }
-
-  function saveCurrentSet() {
-    const name = setNameInput.value.trim();
-    const words = getWordsFromTextarea();
-    if (!name) {
-      alert('Bitte einen Namen für das Set eingeben.');
-      return;
-    }
-    if (words.length === 0) {
-      alert('Bitte zuerst Begriffe eingeben.');
-      return;
-    }
-    wordSets[name] = words;
-    saveWordSets();
-    setNameInput.value = '';
-    renderSavedSets();
   }
 
   function handleFileUpload(file) {
@@ -467,14 +461,12 @@
   const wordCountEl = document.getElementById('wordCount');
   const fileUpload = document.getElementById('fileUpload');
   const clearWordsBtn = document.getElementById('clearWordsBtn');
-  const setNameInput = document.getElementById('setNameInput');
-  const saveSetBtn = document.getElementById('saveSetBtn');
-  const savedSetsList = document.getElementById('savedSetsList');
   const setupMessage = document.getElementById('setupMessage');
   const startGameBtn = document.getElementById('startGameBtn');
 
   const spyTurnIndicator = document.getElementById('spyTurnIndicator');
   const spyRemainingCounts = document.getElementById('spyRemainingCounts');
+  const spyReadonlyBanner = document.getElementById('spyReadonlyBanner');
   const clueWordInput = document.getElementById('clueWordInput');
   const clueNumberInput = document.getElementById('clueNumberInput');
   const submitClueBtn = document.getElementById('submitClueBtn');
@@ -482,8 +474,14 @@
   const spyBoard = document.getElementById('spyBoard');
   const spyGameOverBanner = document.getElementById('spyGameOverBanner');
   const spyModeBadge = document.getElementById('spyModeBadge');
+  const showQrBtn = document.getElementById('showQrBtn');
   const resetBoardBtnSpy = document.getElementById('resetBoardBtnSpy');
   const backToSetupBtnSpy = document.getElementById('backToSetupBtnSpy');
+  const qrModalOverlay = document.getElementById('qrModalOverlay');
+  const qrCodeBox = document.getElementById('qrCodeBox');
+  const qrLinkInput = document.getElementById('qrLinkInput');
+  const copyQrLinkBtn = document.getElementById('copyQrLinkBtn');
+  const closeQrModalBtn = document.getElementById('closeQrModalBtn');
 
   const teamTurnIndicator = document.getElementById('teamTurnIndicator');
   const teamRemainingCounts = document.getElementById('teamRemainingCounts');
@@ -512,8 +510,6 @@
     fileUpload.value = '';
   });
 
-  saveSetBtn.addEventListener('click', saveCurrentSet);
-
   startGameBtn.addEventListener('click', () => {
     const words = getWordsFromTextarea();
     if (words.length < BOARD_SIZE) return;
@@ -532,6 +528,18 @@
 
   backToSetupBtnSpy.addEventListener('click', () => setView('setup'));
 
+  showQrBtn.addEventListener('click', openQrModal);
+  closeQrModalBtn.addEventListener('click', closeQrModal);
+  qrModalOverlay.addEventListener('click', (e) => {
+    if (e.target === qrModalOverlay) closeQrModal();
+  });
+  copyQrLinkBtn.addEventListener('click', () => {
+    qrLinkInput.select();
+    navigator.clipboard.writeText(qrLinkInput.value).catch(() => {
+      document.execCommand('copy');
+    });
+  });
+
   fullscreenBtn.addEventListener('click', () => {
     const el = document.getElementById('view-team');
     if (!document.fullscreenElement) {
@@ -543,9 +551,9 @@
 
   // ---------- init ----------
 
-  loadWordSets();
-  loadGame();
-  renderSavedSets();
-  updateWordCount();
-  setView(game ? 'spymaster' : 'setup');
+  if (!initReadOnlyExternalViewIfPresent()) {
+    loadGame();
+    updateWordCount();
+    setView(game ? 'spymaster' : 'setup');
+  }
 })();

@@ -40,19 +40,7 @@
         </div>
 
         <div class="card">
-          <h2>2. Begriffs-Sets verwalten</h2>
-          <p class="hint">Speichere Sets pro Fach/Thema, um sie später wiederzuverwenden.</p>
-          <div class="save-row">
-            <input type="text" id="setNameInput" placeholder="Name des Sets, z. B. Biologie 9 – Zellbiologie">
-            <button type="button" id="saveSetBtn" class="btn-secondary">Set speichern</button>
-          </div>
-          <ul id="savedSetsList" class="saved-sets-list">
-            <li class="empty-hint">Noch keine gespeicherten Sets.</li>
-          </ul>
-        </div>
-
-        <div class="card">
-          <h2>3. Spielmodus wählen</h2>
+          <h2>2. Spielmodus wählen</h2>
           <div class="mode-option">
             <label>
               <input type="radio" name="gameMode" value="standard" checked>
@@ -70,7 +58,7 @@
         </div>
 
         <div class="card start-card">
-          <h2>4. Spiel starten</h2>
+          <h2>3. Spiel starten</h2>
           <div id="setupMessage" class="setup-message"></div>
           <button type="button" id="startGameBtn" class="btn-primary" disabled>Spiel starten</button>
         </div>
@@ -86,6 +74,8 @@
         <div class="mode-badge" id="spyModeBadge"></div>
       </div>
 
+      <div class="readonly-banner" id="spyReadonlyBanner">🔗 Live-Ansicht auf diesem Gerät – nur lesbar, keine Eingaben möglich.</div>
+
       <div class="clue-panel">
         <input type="text" id="clueWordInput" placeholder="Hinweiswort">
         <input type="number" id="clueNumberInput" min="0" max="9" placeholder="Zahl">
@@ -98,10 +88,25 @@
       <div class="game-over-banner" id="spyGameOverBanner"></div>
 
       <div class="controls">
+        <button type="button" id="showQrBtn" class="btn-secondary">📱 Auf zweitem Gerät anzeigen</button>
         <button type="button" id="resetBoardBtnSpy" class="btn-secondary">Neues Spielfeld (gleiche Begriffe)</button>
         <button type="button" id="backToSetupBtnSpy" class="btn-secondary">Zurück zum Setup</button>
       </div>
     </section>
+
+    <!-- ============ QR MODAL ============ -->
+    <div class="modal-overlay" id="qrModalOverlay">
+      <div class="modal-box">
+        <h2>Spymaster-Ansicht auf zweitem Gerät</h2>
+        <p class="hint">Der bzw. die aktuelle Spielleiter:in scannt diesen Code mit dem eigenen Handy oder Tablet, um die geheime Zuordnung dort separat als Nur-Lese-Ansicht zu sehen. Der Code spiegelt immer den Stand zum Zeitpunkt des Öffnens – nach einem Spielleiter-Wechsel bitte neu öffnen.</p>
+        <div class="qr-code-box" id="qrCodeBox"></div>
+        <div class="qr-link-row">
+          <input type="text" id="qrLinkInput" readonly>
+          <button type="button" id="copyQrLinkBtn" class="btn-secondary">Link kopieren</button>
+        </div>
+        <button type="button" id="closeQrModalBtn" class="btn-primary">Schließen</button>
+      </div>
+    </div>
 
     <!-- ============ TEAM VIEW ============ -->
     <section id="view-team" class="view">
@@ -128,7 +133,7 @@
         <p>Zwei Teams (Rot und Blau) versuchen, möglichst schnell alle eigenen Fachbegriffe auf dem 5×5-Raster zu erraten – anhand von Hinweisen ihres Spielleiters (Spymaster).</p>
 
         <h3>Vorbereitung</h3>
-        <p>Im Setup 25 Fachbegriffe eintragen (oder ein gespeichertes Set laden), einen Spielmodus wählen und auf „Spiel starten“ klicken. Die Zuordnung erfolgt automatisch zufällig: 9 Karten Rot, 8 Karten Blau, 7 neutrale Karten, 1 Todeskarte.</p>
+        <p>Im Setup 25 Fachbegriffe eintragen, einen Spielmodus wählen und auf „Spiel starten“ klicken. Die Zuordnung erfolgt automatisch zufällig: 9 Karten Rot, 8 Karten Blau, 7 neutrale Karten, 1 Todeskarte.</p>
 
         <h3>Spielmodi</h3>
         <p><b>Standard:</b> Die geheime Zuordnung steht von Anfang an fest und ändert sich während der ganzen Runde nicht.</p>
@@ -136,6 +141,9 @@
 
         <h3>Rollen</h3>
         <p><b>Spymaster-Ansicht:</b> zeigt alle Karten farbig codiert – nur für den bzw. die Spielleiter:in sichtbar (z. B. auf dem Lehrer-Tablet). <b>Team-Ansicht:</b> zeigt die Begriffe ohne Farben – für die Projektion/den Beamer, den die ganze Klasse sieht.</p>
+
+        <h3>Spymaster-Ansicht auf einem zweiten Gerät</h3>
+        <p>In der Spymaster-Ansicht zeigt „📱 Auf zweitem Gerät anzeigen“ einen QR-Code. Scannt der bzw. die aktuelle Spielleiter:in diesen mit dem eigenen Handy, öffnet sich dort eine reine Nur-Lese-Ansicht des aktuellen Spielfelds – praktisch, wenn nicht alle direkt auf das Lehrer-Tablet schauen können oder sollen. Der Code zeigt immer den Stand zum Zeitpunkt des Öffnens; nach einem Spielleiter-Wechsel bitte neu öffnen und erneut scannen.</p>
 
         <h3>Ablauf</h3>
         <ol>
@@ -149,8 +157,6 @@
         <h3>Sieg</h3>
         <p>Das Team, das zuerst alle eigenen Begriffe aufgedeckt hat, gewinnt. Über „Neues Spielfeld (gleiche Begriffe)“ startet ihr mit demselben Begriffs-Set direkt die nächste Runde.</p>
 
-        <h3>Tipp für den Unterricht</h3>
-        <p>Begriffs-Sets lassen sich im Setup pro Fach/Thema speichern und jederzeit wiederladen – so bereitet ihr mehrere Themen einmalig vor und nutzt sie in beliebigen Klassen erneut.</p>
       </div>
     </section>
 
@@ -188,15 +194,18 @@
         <p>EduCodenames funktioniert vollständig ohne Anmeldung. Es werden keine Namen, E-Mail-Adressen oder sonstigen Kontodaten erhoben.</p>
 
         <h3>3. Lokale Speicherung im Browser</h3>
-        <p>Eingegebene Begriffs-Sets und der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis, gewählter Spielmodus) werden ausschließlich lokal in deinem Browser gespeichert (localStorage), damit sie einen Seiten-Reload überstehen und zwischen mehreren Tabs desselben Geräts (z. B. Tablet und Beamer-Tab) synchron bleiben. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen. Über „Leeren“ bzw. das Löschen eines Sets kannst du sie jederzeit entfernen.</p>
+        <p>Der aktuelle Spielstand (Spielfeld, aufgedeckte Karten, aktueller Hinweis, gewählter Spielmodus) wird ausschließlich lokal in deinem Browser gespeichert (localStorage), damit er einen Seiten-Reload übersteht und zwischen mehreren Tabs desselben Geräts (z. B. Tablet und Beamer-Tab) synchron bleibt. Diese Daten verlassen dein Gerät nicht und werden nicht an mich übertragen.</p>
 
-        <h3>4. Hosting</h3>
+        <h3>4. QR-Code für ein zweites Gerät</h3>
+        <p>Über „Auf zweitem Gerät anzeigen“ in der Spymaster-Ansicht wird ein QR-Code erzeugt, der den aktuellen Spielfeld-Stand direkt und ausschließlich lokal im Browser in einen Link kodiert (kein Server, keine Übertragung an mich). Wird dieser Link auf einem anderen Gerät geöffnet, zeigt dieses Gerät eine reine Nur-Lese-Ansicht der geheimen Zuordnung zum Zeitpunkt des Scannens. Gib diesen Link bzw. QR-Code nur an Personen weiter, die die geheime Zuordnung sehen dürfen.</p>
+
+        <h3>5. Hosting</h3>
         <p>Diese Seite wird über Cloudflare, Inc. gehostet. Beim Aufruf verarbeitet Cloudflare technisch bedingt Server-Logfiles (u. a. IP-Adresse, Datum/Uhrzeit des Zugriffs, aufgerufene Datei), wie es bei jedem Webhosting-Anbieter üblich ist. Details: <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">cloudflare.com/privacypolicy</a>.</p>
 
-        <h3>5. Keine Cookies, kein Tracking</h3>
+        <h3>6. Keine Cookies, kein Tracking</h3>
         <p>EduCodenames setzt keine Cookies ein und verwendet keine Analyse- oder Tracking-Tools.</p>
 
-        <h3>6. Deine Rechte</h3>
+        <h3>7. Deine Rechte</h3>
         <p>Nach Art. 15–21 DSGVO hast du das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch. Wende dich dazu gerne per E-Mail an mich. Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu.</p>
       </div>
     </section>
@@ -210,6 +219,7 @@
   </footer>
 </div>
 
+<script src="qrcode.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
