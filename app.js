@@ -2,6 +2,8 @@
   'use strict';
 
   const STORAGE_GAME_KEY = 'eduCodenames.game';
+  const STORAGE_HISTORY_KEY = 'eduCodenames.history';
+  const MAX_HISTORY = 8;
 
   const BOARD_SIZE = 25;
   const COUNT_RED = 9;
@@ -11,6 +13,7 @@
 
   /**
    * game = {
+   *   id: number,
    *   baseWords: string[25],
    *   words: string[25],
    *   colors: ('red'|'blue'|'neutral'|'black')[25],
@@ -22,10 +25,14 @@
    *   guessesMade: number,
    *   gameOver: boolean,
    *   winner: 'red'|'blue'|null,
-   *   loserReason: 'assassin'|'allFound'|null
+   *   loserReason: 'assassin'|'allFound'|null,
+   *   savedAt: number
    * }
    */
   let game = null;
+
+  /** @type {Array<Object>} recent rounds, newest first */
+  let history = [];
 
   let currentView = 'setup';
 
@@ -46,15 +53,49 @@
   function saveGame() {
     if (game) {
       localStorage.setItem(STORAGE_GAME_KEY, JSON.stringify(game));
+      upsertHistory(game);
     } else {
       localStorage.removeItem(STORAGE_GAME_KEY);
     }
+  }
+
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(STORAGE_HISTORY_KEY);
+      history = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      history = [];
+    }
+  }
+
+  function saveHistory() {
+    localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
+  }
+
+  function upsertHistory(g) {
+    g.savedAt = Date.now();
+    const idx = history.findIndex((h) => h.id === g.id);
+    const entry = JSON.parse(JSON.stringify(g));
+    if (idx === -1) {
+      history.unshift(entry);
+    } else {
+      history[idx] = entry;
+    }
+    history.sort((a, b) => b.savedAt - a.savedAt);
+    if (history.length > MAX_HISTORY) {
+      history.length = MAX_HISTORY;
+    }
+    saveHistory();
   }
 
   window.addEventListener('storage', (e) => {
     if (e.key === STORAGE_GAME_KEY && !isReadOnlyExternal) {
       loadGame();
       renderGameViews();
+    }
+    if (e.key === STORAGE_HISTORY_KEY) {
+      loadHistory();
+      renderHistoryList();
     }
   });
 
@@ -191,6 +232,7 @@
     const words = shuffle(baseWords);
     const colors = buildAssignment();
     game = {
+      id: Date.now(),
       baseWords,
       words,
       colors,
@@ -215,6 +257,7 @@
     const words = shuffle(baseWords);
     const colors = buildAssignment();
     game = {
+      id: Date.now(),
       baseWords,
       words,
       colors,
@@ -347,6 +390,76 @@
     reader.readAsText(file);
   }
 
+  function formatHistoryEntry(g) {
+    const date = new Date(g.savedAt);
+    const dateStr = date.toLocaleDateString('de-DE') + ', ' + date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const status = g.gameOver
+      ? `Beendet – Team ${teamLabel(g.winner)} gewinnt`
+      : `Team ${teamLabel(g.currentTeam)} am Zug`;
+    return { dateStr, meta: `${g.baseWords.length} Begriffe · ${status}` };
+  }
+
+  function renderHistoryList() {
+    historyList.innerHTML = '';
+    if (history.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'empty-hint';
+      li.textContent = 'Noch keine gespeicherten Runden.';
+      historyList.appendChild(li);
+      return;
+    }
+    for (const entry of history) {
+      const { dateStr, meta } = formatHistoryEntry(entry);
+      const li = document.createElement('li');
+
+      const info = document.createElement('div');
+      info.className = 'history-info';
+      const dateEl = document.createElement('span');
+      dateEl.className = 'history-date';
+      dateEl.textContent = dateStr;
+      const metaEl = document.createElement('span');
+      metaEl.className = 'history-meta';
+      metaEl.textContent = meta;
+      info.appendChild(dateEl);
+      info.appendChild(metaEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'history-actions';
+
+      const resumeBtn = document.createElement('button');
+      resumeBtn.type = 'button';
+      resumeBtn.textContent = 'Fortsetzen';
+      resumeBtn.addEventListener('click', () => resumeHistoryEntry(entry.id));
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.textContent = 'Löschen';
+      deleteBtn.className = 'danger';
+      deleteBtn.addEventListener('click', () => {
+        if (confirm('Diese Runde wirklich aus dem Verlauf löschen?')) {
+          history = history.filter((h) => h.id !== entry.id);
+          saveHistory();
+          renderHistoryList();
+        }
+      });
+
+      actions.appendChild(resumeBtn);
+      actions.appendChild(deleteBtn);
+
+      li.appendChild(info);
+      li.appendChild(actions);
+      historyList.appendChild(li);
+    }
+  }
+
+  function resumeHistoryEntry(id) {
+    const entry = history.find((h) => h.id === id);
+    if (!entry) return;
+    game = JSON.parse(JSON.stringify(entry));
+    saveGame();
+    setView('spymaster');
+  }
+
   // ---------- rendering: game views ----------
 
   function teamLabel(team) {
@@ -453,6 +566,9 @@
     if (view === 'spymaster' || view === 'team') {
       renderGameViews();
     }
+    if (view === 'setup') {
+      renderHistoryList();
+    }
   }
 
   // ---------- DOM refs ----------
@@ -463,6 +579,7 @@
   const clearWordsBtn = document.getElementById('clearWordsBtn');
   const setupMessage = document.getElementById('setupMessage');
   const startGameBtn = document.getElementById('startGameBtn');
+  const historyList = document.getElementById('historyList');
 
   const spyTurnIndicator = document.getElementById('spyTurnIndicator');
   const spyRemainingCounts = document.getElementById('spyRemainingCounts');
@@ -552,8 +669,9 @@
   // ---------- init ----------
 
   if (!initReadOnlyExternalViewIfPresent()) {
-    loadGame();
+    loadHistory();
+    renderHistoryList();
     updateWordCount();
-    setView(game ? 'spymaster' : 'setup');
+    setView('setup');
   }
 })();
